@@ -1,0 +1,619 @@
+<title>자모 흩날림</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Gowun+Batang:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a full-bleed ink stage where particles assemble the word, then a quiet console below:
+   input + presets across the top, syllable decomposition (left) beside the notes (right). */
+:root {
+  /* 오방색: 흑 ground, 백 type, 청·황·적 for 초성·중성·종성 */
+  --ink: #0c0f17;
+  --ink-2: #141926;
+  --line: #262e40;
+  --baek: #efebe2;
+  --muted: #8a92a6;
+  --cheong: #4a86e0;
+  --hwang: #e9b949;
+  --jeok: #de4b3d;
+
+  --f-display: "Black Han Sans", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+  --f-body: "Gowun Batang", "AppleMyungjo", "Batang", "Noto Serif KR", serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { background: var(--ink); color: var(--baek); }
+body { font-family: var(--f-body); font-size: 16px; line-height: 1.7; }
+
+.wrap {
+  max-width: 1120px;
+  margin-inline: auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+/* ---------- header ---------- */
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px 32px;
+  padding-block: 28px 20px;
+}
+.brand { display: flex; align-items: center; gap: 14px; }
+.mark { display: grid; grid-template-columns: repeat(3, 8px); gap: 3px; }
+.mark i { display: block; height: 30px; }
+.mark i:nth-child(1) { background: var(--cheong); }
+.mark i:nth-child(2) { background: var(--hwang); }
+.mark i:nth-child(3) { background: var(--jeok); }
+h1 {
+  margin: 0;
+  font-family: var(--f-display);
+  font-weight: 400;
+  font-size: clamp(30px, 5vw, 44px);
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+.tag { margin: 0; max-width: 34em; color: var(--muted); font-size: 15px; text-wrap: balance; }
+
+/* ---------- stage ---------- */
+.stage {
+  position: relative;
+  height: clamp(300px, 56vh, 600px);
+  border-block: 1px solid var(--line);
+  background:
+    radial-gradient(ellipse at 50% 55%, var(--ink-2), var(--ink) 70%);
+  overflow: hidden;
+}
+#c { display: block; width: 100%; height: 100%; touch-action: pan-y; cursor: crosshair; }
+.hint {
+  position: absolute;
+  left: max(16px, env(safe-area-inset-left, 0px));
+  top: 14px;
+  margin: 0;
+  font-family: var(--f-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  pointer-events: none;
+}
+.count {
+  position: absolute;
+  right: max(16px, env(safe-area-inset-right, 0px));
+  bottom: 14px;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px 14px;
+  font-family: var(--f-mono);
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.count b { font-weight: 500; color: var(--baek); }
+.dot { display: inline-block; width: 7px; height: 7px; margin-right: 6px; vertical-align: 1px; }
+.dot.cho { background: var(--cheong); }
+.dot.jung { background: var(--hwang); }
+.dot.jong { background: var(--jeok); }
+
+/* ---------- console ---------- */
+.console { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; padding-block: 28px 56px; }
+
+.field { display: flex; flex-wrap: wrap; align-items: stretch; gap: 10px; }
+.field label {
+  flex-basis: 100%;
+  font-family: var(--f-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+#word {
+  flex: 1 1 220px;
+  min-width: 0;
+  padding: 10px 14px;
+  font-family: var(--f-display);
+  font-size: 26px;
+  line-height: 1.2;
+  color: var(--baek);
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+}
+#word::placeholder { color: var(--muted); }
+.go {
+  padding: 0 22px;
+  font-family: var(--f-display);
+  font-size: 18px;
+  color: var(--ink);
+  background: var(--baek);
+  border: 0;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.go:hover { background: var(--hwang); }
+
+.presets { display: flex; flex-wrap: wrap; gap: 8px; }
+.presets button {
+  padding: 6px 12px;
+  font-family: var(--f-body);
+  font-size: 15px;
+  color: var(--baek);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  cursor: pointer;
+}
+.presets button:hover { border-color: var(--muted); }
+.presets button[aria-pressed="true"] { border-color: var(--hwang); color: var(--hwang); }
+
+:focus-visible { outline: 2px solid var(--hwang); outline-offset: 2px; }
+
+.cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 40px;
+  align-items: start;
+}
+@media (max-width: 780px) { .cols { grid-template-columns: minmax(0, 1fr); gap: 32px; } }
+
+h2 {
+  margin: 0 0 14px;
+  font-family: var(--f-mono);
+  font-weight: 500;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+.syl { display: flex; flex-wrap: wrap; gap: 10px; }
+.card {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 4px 16px;
+  padding: 12px 16px 12px 14px;
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+}
+.card .glyph { grid-row: span 2; font-family: var(--f-display); font-size: 48px; line-height: 1; }
+.card .parts { display: flex; gap: 10px; }
+.card .part { display: grid; justify-items: center; gap: 2px; min-width: 26px; }
+.card .part span { font-family: var(--f-mono); font-size: 10px; color: var(--muted); letter-spacing: 0.04em; }
+.card .part b { font-family: var(--f-display); font-weight: 400; font-size: 22px; line-height: 1.1; }
+.card .part.cho b { color: var(--cheong); }
+.card .part.jung b { color: var(--hwang); }
+.card .part.jong b { color: var(--jeok); }
+.card .part.none b { color: var(--line); }
+.card .code { font-family: var(--f-mono); font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.empty { margin: 0; color: var(--muted); }
+
+.notes p { margin: 0 0 14px; max-width: 36em; }
+.notes code {
+  font-family: var(--f-mono);
+  font-size: 0.86em;
+  padding: 1px 5px;
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  white-space: nowrap;
+}
+.formula {
+  margin: 4px 0 18px;
+  padding: 12px 14px;
+  font-family: var(--f-mono);
+  font-size: 13px;
+  line-height: 1.8;
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  overflow-x: auto;
+  white-space: pre;
+}
+.formula .c1 { color: var(--cheong); }
+.formula .c2 { color: var(--hwang); }
+.formula .c3 { color: var(--jeok); }
+
+footer {
+  padding-block: 20px 32px;
+  border-top: 1px solid var(--line);
+  font-family: var(--f-mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+
+<header class="top wrap">
+  <div class="brand">
+    <span class="mark" aria-hidden="true"><i></i><i></i><i></i></span>
+    <h1>자모 흩날림</h1>
+  </div>
+  <p class="tag">글자를 입력하면 흩어진 입자가 모여 한글이 됩니다. 초성은 청, 중성은 황, 종성은 적으로 물듭니다.</p>
+</header>
+
+<section class="stage" aria-label="입자로 그린 글자. 마우스로 흩뜨리고 클릭하면 터집니다.">
+  <canvas id="c"></canvas>
+  <p class="hint">휘저어 흩뜨리기 · 클릭하면 터짐</p>
+  <p class="count" id="count" aria-live="polite"></p>
+</section>
+
+<main class="console wrap">
+  <form class="field" id="form" autocomplete="off">
+    <label for="word">글자 (최대 8자)</label>
+    <input id="word" name="word" type="text" maxlength="8" value="한글" spellcheck="false" placeholder="여기에 입력">
+    <button class="go" type="submit">모으기</button>
+  </form>
+
+  <div class="presets" role="group" aria-label="예시 단어" id="presets">
+    <button type="button" data-w="한글">한글</button>
+    <button type="button" data-w="훈민정음">훈민정음</button>
+    <button type="button" data-w="별빛">별빛</button>
+    <button type="button" data-w="서울">서울</button>
+    <button type="button" data-w="고마워요">고마워요</button>
+    <button type="button" data-w="닭볶음탕">닭볶음탕</button>
+  </div>
+
+  <div class="cols">
+    <section>
+      <h2>음절 분해 · SYLLABLES</h2>
+      <div class="syl" id="syl"></div>
+    </section>
+
+    <section class="notes">
+      <h2>어떻게 나누나 · HOW</h2>
+      <p>유니코드의 한글 음절 11,172자는 <code>U+AC00</code>부터 <code>U+D7A3</code>까지 초성·중성·종성 순서로 빈틈없이 놓여 있습니다. 그래서 음절 하나는 산수만으로 세 조각이 됩니다.</p>
+      <div class="formula">n = 코드 − 0xAC00
+<span class="c1">초성</span> = ⌊n ÷ 588⌋        <span aria-hidden="true">// 588 = 21 × 28</span>
+<span class="c2">중성</span> = ⌊(n mod 588) ÷ 28⌋
+<span class="c3">종성</span> = n mod 28</div>
+      <p>입자의 색은 글꼴을 여러 번 그려 비교해서 정합니다. 초성만 바꿔 그려도 남고 받침만 바꿔 그려도 남는 픽셀은 중성, 초성을 바꿀 때만 남으면 종성, 받침을 바꿀 때만 남으면 초성입니다.</p>
+    </section>
+  </div>
+</main>
+
+<footer class="wrap">초성 19 × 중성 21 × 종성 28 = 11,172 음절</footer>
+
+<script>
+(() => {
+  const CHO = [..."ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ"];
+  const JUNG = [..."ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ"];
+  const JONG = ["", ..."ㄱㄲㄳㄴㄵㄶㄷㄹㄺㄻㄼㄽㄾㄿㅀㅁㅂㅄㅅㅆㅇㅈㅊㅋㅌㅍㅎ"];
+  // Alternate initials (ㄱ ㄴ ㅇ ㅎ) and finals (ㄱ ㄴ ㄹ ㅁ) redrawn to tell which pixels belong to which jamo
+  const REF_CHO = [0, 2, 11, 18];
+  const REF_JONG = [1, 4, 8, 16];
+
+  const root = getComputedStyle(document.documentElement);
+  const tok = (n) => root.getPropertyValue(n).trim();
+  const COLOR = { cho: tok("--cheong"), jung: tok("--hwang"), jong: tok("--jeok"), other: tok("--baek") };
+  const DUST_COLORS = [COLOR.cho, COLOR.jung, COLOR.jong, COLOR.other];
+  const FONT = '"Black Han Sans", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
+
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+
+  const split = (ch) => {
+    const n = ch.charCodeAt(0) - 0xac00;
+    if (n < 0 || n > 11171) return null;
+    return { cho: Math.floor(n / 588), jung: Math.floor((n % 588) / 28), jong: n % 28 };
+  };
+  const join = (a, b, c) => String.fromCharCode(0xac00 + (a * 21 + b) * 28 + c);
+
+  // ---------- glyph masks ----------
+  const off = document.createElement("canvas");
+  const octx = off.getContext("2d", { willReadFrequently: true });
+
+  function mask(ch, fs, w, h) {
+    off.width = w; off.height = h;
+    octx.font = `${fs}px ${FONT}`;
+    octx.textBaseline = "middle";
+    octx.fillStyle = "#fff";
+    octx.fillText(ch, 0, h / 2);
+    const d = octx.getImageData(0, 0, w, h).data;
+    const m = new Uint8Array(w * h);
+    for (let i = 0; i < m.length; i++) m[i] = d[i * 4 + 3] > 110 ? 1 : 0;
+    return m;
+  }
+  function near(m, w, h, x, y, r) {
+    const pts = [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]];
+    for (const [dx, dy] of pts) {
+      const xx = x + dx, yy = y + dy;
+      if (xx >= 0 && yy >= 0 && xx < w && yy < h && m[yy * w + xx]) return true;
+    }
+    return false;
+  }
+
+  // ---------- stage ----------
+  const canvas = document.getElementById("c");
+  const ctx = canvas.getContext("2d");
+  let W = 0, H = 0, DPR = 1;
+  let parts = [];
+  let step = 6;
+  let text = "";
+  const mouse = { x: 0, y: 0, on: false };
+
+  function resize() {
+    const r = canvas.getBoundingClientRect();
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = r.width; H = r.height;
+    canvas.width = Math.round(W * DPR);
+    canvas.height = Math.round(H * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.fillStyle = tok("--ink");
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  function buildTargets(str) {
+    const chars = [...str];
+    if (!chars.length || !W) return { targets: [], counts: { cho: 0, jung: 0, jong: 0, other: 0 } };
+
+    octx.font = `100px ${FONT}`;
+    const adv100 = chars.map((ch) => (ch === " " ? 36 : octx.measureText(ch).width) + 4);
+    const tot100 = adv100.reduce((a, b) => a + b, 0);
+    const fs = Math.max(28, Math.min(H * 0.6, (W * 0.88) / tot100 * 100));
+    const cellH = Math.ceil(fs * 1.35);
+    const top = H / 2 - cellH / 2;
+    let x = (W - tot100 * fs / 100) / 2;
+
+    const cells = [];
+    let ink = 0;
+    chars.forEach((ch, i) => {
+      const w = Math.ceil(adv100[i] * fs / 100) + 2;
+      const cell = { ch, x0: x, w, h: cellH, s: ch === " " ? null : split(ch) };
+      x += adv100[i] * fs / 100;
+      if (ch === " ") return;
+      cell.m = mask(ch, fs, w, cellH);
+      for (let k = 0; k < cell.m.length; k++) ink += cell.m[k];
+      if (cell.s) {
+        const { cho, jung, jong } = cell.s;
+        // same vowel + final, different initials: what survives is 중성 (+ 종성)
+        cell.byCho = REF_CHO.filter((c) => c !== cho).slice(0, 3).map((c) => mask(join(c, jung, jong), fs, w, cellH));
+        // same initial + vowel, different finals: what survives is 초성 + 중성
+        if (jong) cell.byJong = REF_JONG.filter((j) => j !== jong).slice(0, 3).map((j) => mask(join(cho, jung, j), fs, w, cellH));
+      }
+      cells.push(cell);
+    });
+
+    const budget = W < 560 ? 1400 : 2400;
+    step = Math.max(3, Math.sqrt(ink / budget));
+    const tol = Math.max(1, Math.round(fs / 90));
+    const targets = [];
+    const counts = { cho: 0, jung: 0, jong: 0, other: 0 };
+
+    for (const c of cells) {
+      for (let sy = step / 2; sy < c.h; sy += step) {
+        for (let sx = step / 2; sx < c.w; sx += step) {
+          const px = Math.floor(sx), py = Math.floor(sy);
+          if (!c.m[py * c.w + px]) continue;
+          let role = "other";
+          if (c.s) {
+            const a = c.byCho.every((r) => near(r, c.w, c.h, px, py, tol));
+            if (!c.byJong) role = a ? "jung" : "cho";
+            else {
+              const b = c.byJong.every((r) => near(r, c.w, c.h, px, py, tol));
+              if (a && b) role = "jung";
+              else if (a) role = "jong";
+              else if (b) role = "cho";
+              else role = py > c.h * 0.58 ? "jong" : "cho";
+            }
+          }
+          counts[role]++;
+          targets.push({ x: c.x0 + sx, y: top + sy, role });
+        }
+      }
+    }
+    // shuffle so particles cross the stage instead of sliding in rows
+    for (let i = targets.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [targets[i], targets[j]] = [targets[j], targets[i]];
+    }
+    return { targets, counts };
+  }
+
+  function spawn(near) {
+    const a = Math.random() * Math.PI * 2;
+    const r = near ? 40 + Math.random() * 120 : 0;
+    return {
+      x: near ? near.x + Math.cos(a) * r : Math.random() * W,
+      y: near ? near.y + Math.sin(a) * r : Math.random() * H,
+      vx: 0, vy: 0, t: null, a: 0,
+      c: DUST_COLORS[Math.floor(Math.random() * 4)],
+      seed: Math.random() * 1000,
+    };
+  }
+
+  const DUST = 260;
+  function apply(str) {
+    const { targets, counts } = buildTargets(str);
+    while (parts.length < targets.length + DUST) parts.push(spawn(targets[parts.length]));
+    if (parts.length > targets.length + DUST * 2) parts.length = targets.length + DUST;
+    parts.forEach((p, i) => {
+      const t = targets[i];
+      p.t = t || null;
+      if (t) p.c = COLOR[t.role];
+      else if (p.x < 0 || p.x > W || p.y < 0 || p.y > H) { p.x = Math.random() * W; p.y = Math.random() * H; }
+      if (reduce.matches && t) { p.x = t.x; p.y = t.y; p.vx = p.vy = 0; }
+    });
+    renderCount(counts, targets.length);
+  }
+
+  // ---------- loop ----------
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(2, (now - last) / 16.67);
+    last = now;
+    const still = reduce.matches;
+
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = still ? tok("--ink") : "rgba(12,15,23,0.3)";
+    ctx.fillRect(0, 0, W, H);
+
+    const R = Math.max(70, Math.min(W, H) * 0.16);
+    const size = Math.max(2, step * 0.72);
+    for (const p of parts) {
+      let ax = 0, ay = 0;
+      if (p.t) {
+        ax = (p.t.x - p.x) * 0.05;
+        ay = (p.t.y - p.y) * 0.05;
+      } else {
+        ax = Math.sin(now * 0.0004 + p.seed) * 0.03;
+        ay = Math.cos(now * 0.0005 + p.seed * 1.3) * 0.03;
+      }
+      if (mouse.on && !still) {
+        const dx = p.x - mouse.x, dy = p.y - mouse.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < R * R && d2 > 0.01) {
+          const d = Math.sqrt(d2), f = (1 - d / R) * 3.2;
+          ax += (dx / d) * f; ay += (dy / d) * f;
+        }
+      }
+      if (still) {
+        if (p.t) { p.x = p.t.x; p.y = p.t.y; }
+      } else {
+        p.vx = (p.vx + ax * dt) * 0.85;
+        p.vy = (p.vy + ay * dt) * 0.85;
+        p.x += p.vx * dt; p.y += p.vy * dt;
+      }
+      if (!p.t) {
+        if (p.x < -10) p.x = W + 10; else if (p.x > W + 10) p.x = -10;
+        if (p.y < -10) p.y = H + 10; else if (p.y > H + 10) p.y = -10;
+      }
+      const goal = p.t ? 1 : 0.32;
+      p.a += (goal - p.a) * 0.06;
+      ctx.globalAlpha = p.a;
+      ctx.fillStyle = p.c;
+      const s = p.t ? size : 1.6;
+      ctx.fillRect(p.x - s / 2, p.y - s / 2, s, s);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- panel ----------
+  const sylEl = document.getElementById("syl");
+  const countEl = document.getElementById("count");
+  const el = (tag, cls, txt) => {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (txt != null) e.textContent = txt;
+    return e;
+  };
+
+  function renderSyllables(str) {
+    sylEl.replaceChildren();
+    const chars = [...str].filter((c) => c !== " ");
+    if (!chars.length) { sylEl.append(el("p", "empty", "글자를 입력하면 여기에서 세 조각으로 나뉩니다.")); return; }
+    for (const ch of chars) {
+      const s = split(ch);
+      const card = el("div", "card");
+      card.append(el("div", "glyph", ch));
+      const partsEl = el("div", "parts");
+      const add = (cls, label, val) => {
+        const p = el("div", "part " + cls);
+        p.append(el("span", null, label), el("b", null, val));
+        partsEl.append(p);
+      };
+      if (s) {
+        add("cho", "초성", CHO[s.cho]);
+        add("jung", "중성", JUNG[s.jung]);
+        s.jong ? add("jong", "종성", JONG[s.jong]) : add("none", "종성", "∅");
+      } else {
+        add("none", "음절 아님", "–");
+      }
+      const cp = ch.codePointAt(0).toString(16).toUpperCase().padStart(4, "0");
+      card.append(partsEl, el("div", "code", "U+" + cp));
+      sylEl.append(card);
+    }
+  }
+
+  function renderCount(c, total) {
+    countEl.replaceChildren();
+    const item = (cls, label, n) => {
+      const s = el("span");
+      if (cls) s.append(el("i", "dot " + cls));
+      s.append(label + " ", el("b", null, n.toLocaleString("ko-KR")));
+      countEl.append(s);
+    };
+    item(null, "입자", total);
+    item("cho", "초성", c.cho);
+    item("jung", "중성", c.jung);
+    item("jong", "종성", c.jong);
+  }
+
+  // ---------- input ----------
+  const input = document.getElementById("word");
+  const form = document.getElementById("form");
+  const presets = document.getElementById("presets");
+
+  const fontReady = (str) => {
+    if (!document.fonts || !document.fonts.load) return Promise.resolve();
+    return Promise.race([
+      document.fonts.load(`100px "Black Han Sans"`, str || "한글").catch(() => {}),
+      new Promise((r) => setTimeout(r, 2500)),
+    ]);
+  };
+
+  let req = 0;
+  async function setText(raw) {
+    const str = [...raw.trim()].slice(0, 8).join("");
+    text = str;
+    const id = ++req;
+    renderSyllables(str);
+    presets.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.w === str)));
+    await fontReady(str);
+    if (id === req) apply(str);
+  }
+
+  let timer;
+  input.addEventListener("input", () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => setText(input.value), 220);
+  });
+  form.addEventListener("submit", (e) => { e.preventDefault(); clearTimeout(timer); setText(input.value); });
+  presets.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-w]");
+    if (!b) return;
+    input.value = b.dataset.w;
+    setText(b.dataset.w);
+  });
+
+  // ---------- pointer ----------
+  const local = (e) => {
+    const r = canvas.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  };
+  canvas.addEventListener("pointermove", (e) => { Object.assign(mouse, local(e), { on: true }); });
+  canvas.addEventListener("pointerleave", () => { mouse.on = false; });
+  canvas.addEventListener("pointercancel", () => { mouse.on = false; });
+  canvas.addEventListener("pointerdown", (e) => {
+    if (reduce.matches) return;
+    const m = local(e);
+    for (const p of parts) {
+      const dx = p.x - m.x, dy = p.y - m.y;
+      const d = Math.hypot(dx, dy) || 1;
+      if (d < 220) {
+        const f = (1 - d / 220) * 26;
+        p.vx += (dx / d) * f; p.vy += (dy / d) * f;
+      }
+    }
+  });
+
+  let rz;
+  new ResizeObserver(() => {
+    cancelAnimationFrame(rz);
+    rz = requestAnimationFrame(() => { resize(); apply(text); });
+  }).observe(canvas);
+
+  resize();
+  for (let i = 0; i < DUST; i++) parts.push(spawn());
+  setText(input.value);
+  requestAnimationFrame(frame);
+})();
+</script>
